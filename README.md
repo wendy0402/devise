@@ -411,20 +411,25 @@ Caution: Devise Controllers inherit from ApplicationController. If your app uses
 
 ### Test helpers
 
-Devise includes some test helpers for functional specs. In order to use them, you need to include Devise in your functional tests by adding the following to the bottom of your `test/test_helper.rb` file (make sure you place it out of scope of `ActiveSupport::TestCase` which is the default class inside of `test/test_helper.rb`):
+Devise includes some test helpers for controller and integration tests.
+In order to use them, you need to include the respective module in your test
+cases/specs.
+
+### Controller tests
 
 ```ruby
-class ActionController::TestCase
-  include Devise::TestHelpers
+class PostsControllerTest < ActionController::TestCase
+  include Devise::Test::ControllerHelpers
 end
 ```
 
-If you're using RSpec, you can put the following inside a file named `spec/support/devise.rb` or in your `spec/spec_helper.rb` (or `spec/rails_helper.rb` if you are using rspec-rails):
+If you're using RSpec, you can put the following inside a file named `spec/support/devise.rb`
+or in your `spec/spec_helper.rb` (or `spec/rails_helper.rb` if you are using `rspec-rails`):
 
 ```ruby
 RSpec.configure do |config|
-  config.include Devise::TestHelpers, type: :controller
-  config.include Devise::TestHelpers, type: :view
+  config.include Devise::Test::ControllerHelpers, type: :controller
+  config.include Devise::Test::ControllerHelpers, type: :view
 end
 ```
 
@@ -440,16 +445,40 @@ sign_out :user         # sign_out(scope)
 sign_out @user         # sign_out(resource)
 ```
 
-There are two things that are important to keep in mind:
+If you are testing Devise internal controllers or a controller that inherits from Devise's, you need to tell Devise which mapping should be used before a request. This is necessary because Devise gets this information from the router, but since functional tests do not pass through the router, it needs to be stated explicitly. For example, if you are testing the user scope, simply use:
 
-1. These helpers are not going to work for integration tests driven by Capybara or Webrat. They are meant to be used with functional tests only. It is undesirable even to include `Devise::TestHelpers` during integration tests. Instead, fill in the form or explicitly set the user in session;
+```ruby
+@request.env["devise.mapping"] = Devise.mappings[:user]
+get :new
+```
 
-2. If you are testing Devise internal controllers or a controller that inherits from Devise's, you need to tell Devise which mapping should be used before a request. This is necessary because Devise gets this information from the router, but since functional tests do not pass through the router, it needs to be stated explicitly. For example, if you are testing the user scope, simply use:
+### Integration tests
 
-    ```ruby
-    @request.env["devise.mapping"] = Devise.mappings[:user]
-    get :new
-    ```
+```
+ruby
+class PostsTests < ActionDispatch::IntegrationTest
+  include Devise::Test::IntegrationHelpers
+end
+```
+
+Now you can use the following `sign_in` and `sign_out` methods in your integration
+tests:
+
+```ruby
+sign_in users(:bob)
+sign_in users(:bob), scope: :admin
+
+sign_out :user
+```
+
+RSpec users can include the `IntegrationHelpers` module on their `:feature` specs.
+
+```ruby
+RSpec.configure do |config|
+  config.include Devise::Test::IntegrationHelpers, type: :feature
+end
+```
+
 
 You can read more about testing your Rails 3 - Rails 4 controllers with RSpec in the wiki:
 
